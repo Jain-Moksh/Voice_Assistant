@@ -25,13 +25,20 @@ export async function POST(request) {
     // Extract user message from either format
     let userMessage;
 
-    if (body.message) {
-      // Format: { message: "..." }
+    if (body.message && typeof body.message === "string") {
+      // Legacy format: { message: "..." }
       userMessage = body.message;
-    } else if (body.messages && body.messages.length > 0) {
-      // Format: { messages: [{ role: "user", content: "..." }] }
-      userMessage = body.messages[body.messages.length - 1].content;
-    } else {
+    } else if (
+      body.messages &&
+      Array.isArray(body.messages) &&
+      body.messages.length > 0
+    ) {
+      // Vapi format: { messages: [{ role: "user", content: "..." }] }
+      const lastMessage = body.messages[body.messages.length - 1];
+      userMessage = lastMessage.content;
+    }
+
+    if (!userMessage) {
       return Response.json({ error: "Message is required" }, { status: 400 });
     }
 
