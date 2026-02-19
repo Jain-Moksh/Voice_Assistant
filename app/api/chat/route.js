@@ -114,16 +114,24 @@ ${message}`,
     const finalAnswer = chatCompletion.choices[0]?.message?.content || "";
 
     // ✅ OpenAI-compatible response format for Vapi Custom LLM
-    return Response.json({
-      choices: [
-        {
-          message: {
-            role: "assistant",
-            content: finalAnswer,
+    return new Response(
+      JSON.stringify({
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: finalAnswer,
+            },
           },
+        ],
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
         },
-      ],
-    });
+      },
+    );
   } catch (error) {
     console.error("Chat API error:", error);
 
