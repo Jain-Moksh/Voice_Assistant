@@ -22,23 +22,20 @@ export async function POST(request) {
   try {
     const body = await request.json();
 
-    // Detect call type: frontend vs Vapi
-    let message;
-    let isVapiCall = false;
+    // Extract user message from either format
+    let userMessage;
 
     if (body.message) {
-      // Frontend call format: { message: "..." }
-      message = body.message;
-    } else if (
-      body.type === "response.create" &&
-      body.response?.input?.[0]?.content
-    ) {
-      // Vapi call format
-      message = body.response.input[0].content;
-      isVapiCall = true;
+      // Format: { message: "..." }
+      userMessage = body.message;
+    } else if (body.messages && body.messages.length > 0) {
+      // Format: { messages: [{ role: "user", content: "..." }] }
+      userMessage = body.messages[body.messages.length - 1].content;
     } else {
       return Response.json({ error: "Message is required" }, { status: 400 });
     }
+
+    const message = userMessage;
 
     // 1. Generate embeddings using HuggingFace
     const rawEmbedding = await hf.featureExtraction({
@@ -93,21 +90,13 @@ export async function POST(request) {
       ],
     });
 
-    const reply = chatCompletion.choices[0]?.message?.content || "";
+    const finalAnswer = chatCompletion.choices[0]?.message?.content || "";
 
-    // Return appropriate format based on call type
-    if (isVapiCall) {
-      return Response.json({
-        output: [
-          {
-            type: "message",
-            content: reply,
-          },
-        ],
-      });
-    }
-
-    return Response.json({ reply });
+    // Return Vapi-compatible format
+    return Response.json({
+      role: "assistant",
+      content: finalAnswer,
+    });
   } catch (error) {
     console.error("Chat API error:", error);
     return Response.json(
