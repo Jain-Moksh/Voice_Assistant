@@ -22,42 +22,48 @@ export async function POST(request) {
   try {
     const body = await request.json();
 
-    // Extract user message from either format
-    let userMessage;
+    console.log("Incoming body:", body);
 
-    if (body.message && typeof body.message === "string") {
-      // Legacy format: { message: "..." }
+    let userMessage = null;
+
+    // ✅ Legacy format support
+    if (typeof body.message === "string") {
       userMessage = body.message;
-    } else if (
+    }
+
+    // ✅ Vapi format support
+    if (
       body.messages &&
       Array.isArray(body.messages) &&
       body.messages.length > 0
     ) {
-      // Vapi format: { messages: [{ role: "user", content: "..." }] }
       const lastMessage = body.messages[body.messages.length - 1];
-      userMessage = lastMessage.content;
+
+      if (lastMessage && typeof lastMessage.content === "string") {
+        userMessage = lastMessage.content;
+      }
     }
 
-    if (!userMessage) {
+    if (!userMessage || userMessage.trim() === "") {
       return Response.json({ error: "Message is required" }, { status: 400 });
     }
 
     const message = userMessage;
 
-    // 1. Generate embeddings using HuggingFace
+    // 1️⃣ Generate embeddings using HuggingFace
     const rawEmbedding = await hf.featureExtraction({
       model: "sentence-transformers/all-MiniLM-L6-v2",
       inputs: message,
       provider: "hf-inference",
     });
 
-    // Extract flat array if nested
     const queryEmbedding = Array.isArray(rawEmbedding[0])
       ? rawEmbedding[0]
       : rawEmbedding;
+
     console.log("Query embedding length:", queryEmbedding.length);
 
-    // 2. Query Supabase for matching documents
+    // 2️⃣ Query Supabase
     const { data: documents, error: matchError } = await supabase.rpc(
       "match_documents",
       {
@@ -77,35 +83,44 @@ export async function POST(request) {
       );
     }
 
-    // 3. Combine retrieved content into context
+    // 3️⃣ Build context
     const context =
       documents?.map((doc) => `- ${doc.content}`).join("\n") || "";
 
-    // 4. Call Groq LLM
+    // 4️⃣ Call Groq
     const chatCompletion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",
-          content:
-            'You are a professional AI assistant.\nUse ONLY the provided context to answer the question.\nIf the answer is not in the context, say:\n"I don\'t have that information in my knowledge base."\n\nBe clear, natural, and concise.',
+          content: `You are a professional AI assistant.
+Use ONLY the provided context to answer the question.
+If the answer is not in the context, say:
+"I don't have that information in my knowledge base."
+
+Be clear, natural, and concise.`,
         },
         {
           role: "user",
-          content: `Context:\n${context}\n\nQuestion:\n${message}`,
+          content: `Context:
+${context}
+
+Question:
+${message}`,
         },
       ],
     });
 
     const finalAnswer = chatCompletion.choices[0]?.message?.content || "";
 
-    // Return Vapi-compatible format
+    // ✅ Vapi-compatible response format
     return Response.json({
       role: "assistant",
       content: finalAnswer,
     });
   } catch (error) {
     console.error("Chat API error:", error);
+
     return Response.json(
       { error: error.message || "Internal server error" },
       { status: 500 },
