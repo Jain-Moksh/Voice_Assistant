@@ -39,11 +39,11 @@ export default function ChatPage() {
 
       const data = await res.json();
 
-      if (data.reply) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: data.reply },
-        ]);
+      // Handle OpenAI-compatible response format
+      const reply = data.choices?.[0]?.message?.content || data.reply;
+
+      if (reply) {
+        setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       } else if (data.error) {
         setMessages((prev) => [
           ...prev,

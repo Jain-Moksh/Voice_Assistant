@@ -38,7 +38,7 @@ export default function Home() {
               asChild
               className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500"
             >
-              <Link href="/chat">Start Chat</Link>
+              <Link href="/assistant">Start Chat</Link>
             </Button>
           </div>
         </header>
@@ -75,7 +75,7 @@ export default function Home() {
               size="lg"
               className="h-14 bg-gradient-to-r from-violet-600 to-purple-600 px-8 text-lg hover:from-violet-500 hover:to-purple-500"
             >
-              <Link href="/chat" className="flex items-center gap-2">
+              <Link href="/assistant" className="flex items-center gap-2">
                 <svg
                   className="h-5 w-5"
                   fill="none"
@@ -281,7 +281,7 @@ export default function Home() {
               size="lg"
               className="h-14 bg-white px-8 text-lg text-zinc-900 hover:bg-zinc-100"
             >
-              <Link href="/chat" className="flex items-center gap-2">
+              <Link href="/assistant" className="flex items-center gap-2">
                 <svg
                   className="h-5 w-5"
                   fill="none"
