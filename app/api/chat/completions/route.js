@@ -70,7 +70,7 @@ export async function POST(request) {
 
     // 4️⃣ Call Groq with RAG context
     const chatCompletion = await groq.chat.completions.create({
-      model: body.model || "llama-3.3-70b-versatile",
+      model: "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",
