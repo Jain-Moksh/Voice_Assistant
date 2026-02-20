@@ -13,12 +13,32 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
+// Helper to generate OpenAI-compatible response
+function createOpenAIResponse(content, model = "llama-3.3-70b-versatile") {
+  return {
+    id: `chatcmpl-${Date.now()}`,
+    object: "chat.completion",
+    created: Math.floor(Date.now() / 1000),
+    model: model,
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: content,
+        },
+        finish_reason: "stop",
+      },
+    ],
+  };
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
     console.log("Incoming body:", JSON.stringify(body));
 
-    // 🔥 Robust user message extraction (handles all Vapi formats)
+    // Robust user message extraction (handles all Vapi formats)
     let userMessage = "";
 
     if (typeof body === "string") {
@@ -39,16 +59,15 @@ export async function POST(request) {
 
     if (!userMessage) {
       console.log("No user message found");
-      return Response.json({
-        choices: [
-          {
-            message: {
-              role: "assistant",
-              content: "I did not receive a valid message.",
-            },
-          },
-        ],
-      });
+      return new Response(
+        JSON.stringify(
+          createOpenAIResponse("I did not receive a valid message."),
+        ),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
     }
 
     // 1️⃣ Generate embedding
@@ -91,30 +110,23 @@ export async function POST(request) {
       chatCompletion.choices[0]?.message?.content ||
       "I don't have that information in my knowledge base.";
 
-    // 🔥 Always return OpenAI-compatible format
-    return Response.json({
-      choices: [
-        {
-          message: {
-            role: "assistant",
-            content: finalAnswer,
-          },
-        },
-      ],
+    // Return full OpenAI-compatible format
+    return new Response(JSON.stringify(createOpenAIResponse(finalAnswer)), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Chat API error:", error);
 
-    // IMPORTANT: Never throw 500 to Vapi
-    return Response.json({
-      choices: [
-        {
-          message: {
-            role: "assistant",
-            content: "Sorry, something went wrong.",
-          },
-        },
-      ],
-    });
+    // IMPORTANT: Never throw 500 to Vapi - always return 200 with error message
+    return new Response(
+      JSON.stringify(
+        createOpenAIResponse("Sorry, something went wrong. Please try again."),
+      ),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }
